@@ -1,289 +1,284 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  Image, Dimensions, StatusBar, FlatList,
+  View, Text, TouchableOpacity, StyleSheet, Dimensions,
+  Modal, Image, ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useMusic } from '../context/MusicContext';
-import { JUICE_WRLD_SONGS, ALBUMS, PLAYLISTS, formatDuration } from '../data/songs';
+import { formatDuration } from '../data/songs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
 
-const FEATURED = JUICE_WRLD_SONGS.slice(0, 5);
+export default function FullPlayer() {
+  const {
+    currentSong, isPlaying, togglePlay, playNext, playPrev,
+    playerExpanded, setPlayerExpanded, queue, playSong,
+    toggleLike, isLiked, progress,
+  } = useMusic();
 
-export default function HomeScreen({ navigation }) {
-  const { playSong, currentSong, isPlaying, togglePlay, isLiked, recentlyPlayed } = useMusic();
-  const [greeting, setGreeting] = useState('');
+  const [showQueue, setShowQueue] = useState(false);
+  const [shuffle, setShuffle] = useState(false);
+  const [repeat, setRepeat] = useState(false);
+  const insets = useSafeAreaInsets();
 
-  useEffect(() => {
-    const hour = new Date().getHours();
-    if (hour < 12) setGreeting('Good morning');
-    else if (hour < 18) setGreeting('Good afternoon');
-    else setGreeting('Good evening');
-  }, []);
+  if (!currentSong || !playerExpanded) return null;
 
-  const handlePlayAll = () => {
-    playSong(JUICE_WRLD_SONGS[0], JUICE_WRLD_SONGS);
-  };
-
-  const renderFeaturedSong = ({ item, index }) => (
-    <TouchableOpacity
-      style={styles.featuredCard}
-      onPress={() => playSong(item, FEATURED)}
-      activeOpacity={0.85}
-    >
-      <Image source={{ uri: item.albumArt }} style={styles.featuredArt} />
-      <LinearGradient
-        colors={['transparent', 'rgba(0,0,0,0.9)']}
-        style={styles.featuredOverlay}
-      />
-      <View style={styles.featuredInfo}>
-        {item.type === 'unreleased' && (
-          <View style={styles.unreleasedBadge}>
-            <Text style={styles.unreleasedText}>UNRELEASED</Text>
-          </View>
-        )}
-        <Text style={styles.featuredTitle} numberOfLines={1}>{item.title}</Text>
-        <Text style={styles.featuredAlbum}>{item.album} • {item.year}</Text>
-      </View>
-      <View style={styles.featuredPlayBtn}>
-        <Ionicons
-          name={currentSong?.id === item.id && isPlaying ? 'pause-circle' : 'play-circle'}
-          size={44}
-          color="#9B59B6"
-        />
-      </View>
-    </TouchableOpacity>
-  );
-
-  const renderSongRow = ({ item }) => (
-    <TouchableOpacity
-      style={[styles.songRow, currentSong?.id === item.id && styles.songRowActive]}
-      onPress={() => playSong(item)}
-      activeOpacity={0.7}
-    >
-      <Image source={{ uri: item.albumArt }} style={styles.songRowArt} />
-      <View style={styles.songRowInfo}>
-        <Text style={[styles.songRowTitle, currentSong?.id === item.id && styles.activeText]} numberOfLines={1}>
-          {item.title}
-        </Text>
-        <Text style={styles.songRowMeta}>{item.year} • {formatDuration(item.duration)}</Text>
-      </View>
-      {item.type === 'unreleased' && (
-        <View style={styles.smallBadge}>
-          <Text style={styles.smallBadgeText}>🔒</Text>
-        </View>
-      )}
-      {currentSong?.id === item.id && (
-        <View style={styles.playingIndicator}>
-          <Ionicons name="musical-notes" size={16} color="#9B59B6" />
-        </View>
-      )}
-    </TouchableOpacity>
-  );
-
-  const renderAlbum = ({ item }) => (
-    <TouchableOpacity
-      style={styles.albumCard}
-      onPress={() => navigation.navigate('Library', { album: item })}
-      activeOpacity={0.8}
-    >
-      <Image source={{ uri: item.art }} style={styles.albumArt} />
-      <Text style={styles.albumTitle} numberOfLines={2}>{item.title}</Text>
-      <Text style={styles.albumYear}>{item.year}</Text>
-    </TouchableOpacity>
-  );
-
-  const renderPlaylist = ({ item }) => (
-    <TouchableOpacity
-      style={styles.playlistCard}
-      onPress={() => {
-        const songs = item.songIds.map(id => JUICE_WRLD_SONGS.find(s => s.id === id)).filter(Boolean);
-        if (songs.length) playSong(songs[0], songs);
-      }}
-      activeOpacity={0.8}
-    >
-      <Image source={{ uri: item.art }} style={styles.playlistArt} />
-      <LinearGradient colors={['transparent', 'rgba(0,0,0,0.8)']} style={styles.playlistOverlay} />
-      <Text style={styles.playlistTitle} numberOfLines={2}>{item.title}</Text>
-    </TouchableOpacity>
-  );
+  const likedSong = isLiked(currentSong.id);
+  const isDrive = currentSong.source === 'googledrive';
+  const prog = Math.min(Math.max(progress || 0, 0), 1);
+  const elapsed = currentSong.duration > 0 ? Math.round(prog * currentSong.duration) : 0;
+  const remaining = currentSong.duration > 0 ? currentSong.duration - elapsed : 0;
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scroll}
+    <Modal visible={playerExpanded} animationType="slide" presentationStyle="fullScreen" statusBarTranslucent>
+      <LinearGradient
+        colors={['#1A0A2E', '#0D0D1A', '#0A0A0F']}
+        style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}
       >
         {/* Header */}
-        <LinearGradient
-          colors={['#1A0A2E', '#0A0A0F']}
-          style={styles.header}
-        >
-          <View style={styles.headerTop}>
-            <View>
-              <Text style={styles.greeting}>{greeting}</Text>
-              <Text style={styles.headerTitle}>Juiceify 🍇</Text>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => setPlayerExpanded(false)} style={styles.iconBtn}>
+            <Ionicons name="chevron-down" size={28} color="#fff" />
+          </TouchableOpacity>
+          <View style={styles.headerCenter}>
+            <Text style={styles.nowPlaying}>NOW PLAYING</Text>
+            <View style={styles.badgeRow}>
+              {isDrive && (
+                <View style={styles.badge}>
+                  <Ionicons name="cloud" size={10} color="#D7BDE2" />
+                  <Text style={styles.badgeText}> DRIVE</Text>
+                </View>
+              )}
+              {currentSong.type === 'unreleased' && (
+                <View style={[styles.badge, styles.badgePurple]}>
+                  <Text style={styles.badgeText}>🔒 VAULT</Text>
+                </View>
+              )}
             </View>
-            <TouchableOpacity style={styles.searchBtn} onPress={() => navigation.navigate('Search')}>
-              <Ionicons name="search" size={22} color="#fff" />
-            </TouchableOpacity>
           </View>
-
-          {/* Quick play row */}
-          <View style={styles.quickRow}>
-            {['All Songs', 'Unreleased', 'Essentials'].map((label, i) => (
-              <TouchableOpacity
-                key={i}
-                style={styles.quickChip}
-                onPress={handlePlayAll}
-              >
-                <Text style={styles.quickChipText}>{label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </LinearGradient>
-
-        {/* Featured / Now Trending */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>🔥 Trending Now</Text>
-          </View>
-          <FlatList
-            data={FEATURED}
-            renderItem={renderFeaturedSong}
-            keyExtractor={i => i.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
-          />
-        </View>
-
-        {/* Albums */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>💿 Albums & Projects</Text>
-          </View>
-          <FlatList
-            data={ALBUMS}
-            renderItem={renderAlbum}
-            keyExtractor={i => i.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 16, gap: 14 }}
-          />
-        </View>
-
-        {/* Curated Playlists */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>🎵 Curated for You</Text>
-          </View>
-          <FlatList
-            data={PLAYLISTS}
-            renderItem={renderPlaylist}
-            keyExtractor={i => i.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
-          />
-        </View>
-
-        {/* Recently Played */}
-        {recentlyPlayed.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>⏱ Recently Played</Text>
-            </View>
-            <FlatList
-              data={recentlyPlayed.slice(0, 10)}
-              renderItem={renderSongRow}
-              keyExtractor={i => i.id}
-              scrollEnabled={false}
-              contentContainerStyle={{ paddingHorizontal: 16 }}
-            />
-          </View>
-        )}
-
-        {/* All Songs Quick Access */}
-        <View style={[styles.section, { marginBottom: 100 }]}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>🎶 All Songs</Text>
-            <TouchableOpacity onPress={handlePlayAll}>
-              <Text style={styles.seeAll}>Play All</Text>
-            </TouchableOpacity>
-          </View>
-          <FlatList
-            data={JUICE_WRLD_SONGS.slice(0, 15)}
-            renderItem={renderSongRow}
-            keyExtractor={i => i.id}
-            scrollEnabled={false}
-            contentContainerStyle={{ paddingHorizontal: 16 }}
-          />
-          <TouchableOpacity
-            style={styles.viewMoreBtn}
-            onPress={() => navigation.navigate('Library')}
-          >
-            <Text style={styles.viewMoreText}>View All {JUICE_WRLD_SONGS.length} Songs</Text>
+          <TouchableOpacity onPress={() => setShowQueue(!showQueue)} style={styles.iconBtn}>
+            <Ionicons name="list" size={22} color={showQueue ? '#9B59B6' : '#888'} />
           </TouchableOpacity>
         </View>
-      </ScrollView>
-    </View>
+
+        {!showQueue ? (
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+
+            {/* Album Art */}
+            <View style={styles.artWrap}>
+              <Image source={{ uri: currentSong.albumArt }} style={styles.art} />
+            </View>
+
+            {/* Source label */}
+            <View style={styles.sourceRow}>
+              <Ionicons
+                name={isDrive ? 'cloud-done-outline' : 'musical-note-outline'}
+                size={13}
+                color="#9B59B6"
+              />
+              <Text style={styles.sourceText}>
+                {isDrive ? 'Streaming from Google Drive' : 'Juiceify Library'}
+              </Text>
+            </View>
+
+            {/* Song Info */}
+            <View style={styles.songInfo}>
+              <View style={styles.songInfoLeft}>
+                <Text style={styles.songTitle} numberOfLines={1}>{currentSong.title}</Text>
+                <Text style={styles.songArtist}>Juice WRLD</Text>
+                <Text style={styles.songAlbum}>{currentSong.album} • {currentSong.year}</Text>
+              </View>
+              <TouchableOpacity onPress={() => toggleLike(currentSong.id)} style={styles.iconBtn}>
+                <Ionicons
+                  name={likedSong ? 'heart' : 'heart-outline'}
+                  size={26}
+                  color={likedSong ? '#9B59B6' : '#555'}
+                />
+              </TouchableOpacity>
+            </View>
+
+            {/* Progress Bar */}
+            <View style={styles.progressWrap}>
+              <View style={styles.progressTrack}>
+                <View style={[styles.progressFill, { width: `${prog * 100}%` }]} />
+                <View style={[styles.progressThumb, { left: `${prog * 100}%` }]} />
+              </View>
+              <View style={styles.progressTimes}>
+                <Text style={styles.timeText}>{formatDuration(elapsed)}</Text>
+                <Text style={styles.timeText}>
+                  {remaining > 0 ? `-${formatDuration(remaining)}` : '--:--'}
+                </Text>
+              </View>
+            </View>
+
+            {/* Main Controls */}
+            <View style={styles.controls}>
+              <TouchableOpacity onPress={playPrev} style={styles.iconBtn}>
+                <Ionicons name="play-skip-back" size={28} color="#fff" />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={togglePlay} style={styles.playBtn}>
+                <LinearGradient colors={['#9B59B6', '#6C3483']} style={styles.playBtnGrad}>
+                  <Ionicons
+                    name={isPlaying ? 'pause' : 'play'}
+                    size={34}
+                    color="#fff"
+                    style={isPlaying ? {} : { marginLeft: 4 }}
+                  />
+                </LinearGradient>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={playNext} style={styles.iconBtn}>
+                <Ionicons name="play-skip-forward" size={28} color="#fff" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Secondary Controls */}
+            <View style={styles.secondaryControls}>
+              <TouchableOpacity
+                style={[styles.secondaryBtn, shuffle && styles.secondaryBtnActive]}
+                onPress={() => setShuffle(p => !p)}
+              >
+                <Ionicons name="shuffle" size={20} color={shuffle ? '#9B59B6' : '#555'} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.secondaryBtn, repeat && styles.secondaryBtnActive]}
+                onPress={() => setRepeat(p => !p)}
+              >
+                <Ionicons name="repeat" size={20} color={repeat ? '#9B59B6' : '#555'} />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.secondaryBtn}>
+                <Ionicons name="share-outline" size={20} color="#555" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.secondaryBtn}>
+                <Ionicons name="ellipsis-horizontal" size={20} color="#555" />
+              </TouchableOpacity>
+            </View>
+
+          </ScrollView>
+        ) : (
+          /* Queue */
+          <View style={styles.queueWrap}>
+            <View style={styles.queueHeader}>
+              <Text style={styles.queueTitle}>Up Next</Text>
+              <Text style={styles.queueCount}>{queue.length} songs</Text>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+              {queue.map((song) => (
+                <TouchableOpacity
+                  key={song.id}
+                  style={[styles.queueRow, currentSong.id === song.id && styles.queueRowActive]}
+                  onPress={() => playSong(song, queue)}
+                >
+                  <Image source={{ uri: song.albumArt }} style={styles.queueArt} />
+                  <View style={styles.queueInfo}>
+                    <Text
+                      style={[styles.queueSongTitle, currentSong.id === song.id && styles.queueSongActive]}
+                      numberOfLines={1}
+                    >
+                      {song.title}
+                    </Text>
+                    <Text style={styles.queueMeta}>
+                      {song.year}{song.duration > 0 ? ` • ${formatDuration(song.duration)}` : ''}
+                    </Text>
+                  </View>
+                  {currentSong.id === song.id && (
+                    <Ionicons name="musical-notes" size={16} color="#9B59B6" />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+      </LinearGradient>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0A0A0F' },
+  container: { flex: 1 },
   scroll: { paddingBottom: 20 },
 
-  header: { paddingTop: 56, paddingBottom: 20, paddingHorizontal: 16 },
-  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  greeting: { fontSize: 13, color: '#aaa', fontWeight: '400' },
-  headerTitle: { fontSize: 28, fontWeight: '800', color: '#fff', letterSpacing: -0.5 },
-  searchBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(155,89,182,0.25)', alignItems: 'center', justifyContent: 'center' },
+  header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingVertical: 12,
+  },
+  iconBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  headerCenter: { alignItems: 'center', flex: 1 },
+  nowPlaying: { color: '#555', fontSize: 10, fontWeight: '700', letterSpacing: 1.5, marginBottom: 4 },
+  badgeRow: { flexDirection: 'row', gap: 6 },
+  badge: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: 'rgba(155,89,182,0.2)', borderRadius: 6,
+    paddingHorizontal: 6, paddingVertical: 2,
+  },
+  badgePurple: { backgroundColor: 'rgba(155,89,182,0.3)' },
+  badgeText: { color: '#D7BDE2', fontSize: 9, fontWeight: '700' },
 
-  quickRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  quickChip: { backgroundColor: 'rgba(155,89,182,0.2)', borderRadius: 20, paddingVertical: 6, paddingHorizontal: 14, borderWidth: 1, borderColor: 'rgba(155,89,182,0.4)' },
-  quickChipText: { color: '#D7BDE2', fontSize: 12, fontWeight: '600' },
+  artWrap: { alignItems: 'center', marginVertical: 28 },
+  art: {
+    width: width - 72, height: width - 72, borderRadius: 20,
+    shadowColor: '#9B59B6', shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.4, shadowRadius: 24,
+  },
 
-  section: { marginTop: 24 },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, marginBottom: 12 },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#fff' },
-  seeAll: { fontSize: 13, color: '#9B59B6', fontWeight: '600' },
+  sourceRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 5, marginBottom: 16,
+  },
+  sourceText: { color: '#9B59B6', fontSize: 11, fontWeight: '500' },
 
-  featuredCard: { width: width * 0.72, height: 200, borderRadius: 16, overflow: 'hidden', position: 'relative' },
-  featuredArt: { width: '100%', height: '100%' },
-  featuredOverlay: { ...StyleSheet.absoluteFillObject },
-  featuredInfo: { position: 'absolute', bottom: 12, left: 12, right: 60 },
-  featuredTitle: { fontSize: 16, fontWeight: '700', color: '#fff', marginBottom: 2 },
-  featuredAlbum: { fontSize: 11, color: 'rgba(255,255,255,0.6)' },
-  featuredPlayBtn: { position: 'absolute', bottom: 8, right: 8 },
-  unreleasedBadge: { backgroundColor: '#9B59B6', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2, alignSelf: 'flex-start', marginBottom: 4 },
-  unreleasedText: { color: '#fff', fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
+  songInfo: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 24, marginBottom: 24 },
+  songInfoLeft: { flex: 1 },
+  songTitle: { fontSize: 22, fontWeight: '800', color: '#fff', marginBottom: 4 },
+  songArtist: { fontSize: 15, color: '#9B59B6', fontWeight: '600', marginBottom: 2 },
+  songAlbum: { fontSize: 12, color: '#555' },
 
-  albumCard: { width: 130 },
-  albumArt: { width: 130, height: 130, borderRadius: 10, marginBottom: 6 },
-  albumTitle: { fontSize: 12, fontWeight: '600', color: '#fff', lineHeight: 16 },
-  albumYear: { fontSize: 11, color: '#888', marginTop: 2 },
+  progressWrap: { paddingHorizontal: 24, marginBottom: 36 },
+  progressTrack: {
+    height: 4, backgroundColor: '#2A2A35', borderRadius: 2,
+    marginBottom: 8, position: 'relative',
+  },
+  progressFill: { height: '100%', backgroundColor: '#9B59B6', borderRadius: 2 },
+  progressThumb: {
+    position: 'absolute', top: -5, marginLeft: -7,
+    width: 14, height: 14, borderRadius: 7, backgroundColor: '#fff',
+  },
+  progressTimes: { flexDirection: 'row', justifyContent: 'space-between' },
+  timeText: { color: '#555', fontSize: 11 },
 
-  playlistCard: { width: 150, height: 150, borderRadius: 12, overflow: 'hidden', position: 'relative' },
-  playlistArt: { width: '100%', height: '100%' },
-  playlistOverlay: { ...StyleSheet.absoluteFillObject },
-  playlistTitle: { position: 'absolute', bottom: 8, left: 8, right: 8, fontSize: 13, fontWeight: '700', color: '#fff' },
+  controls: {
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'center', gap: 32, marginBottom: 28,
+  },
+  playBtn: {
+    shadowColor: '#9B59B6', shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.5, shadowRadius: 14,
+  },
+  playBtnGrad: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center' },
 
-  songRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderRadius: 10, marginBottom: 2 },
-  songRowActive: { backgroundColor: 'rgba(155,89,182,0.1)' },
-  songRowArt: { width: 46, height: 46, borderRadius: 8, marginRight: 12 },
-  songRowInfo: { flex: 1 },
-  songRowTitle: { fontSize: 14, fontWeight: '600', color: '#fff', marginBottom: 2 },
-  songRowMeta: { fontSize: 11, color: '#888' },
-  activeText: { color: '#9B59B6' },
-  smallBadge: { marginRight: 4 },
-  smallBadgeText: { fontSize: 14 },
-  playingIndicator: { marginLeft: 4 },
+  secondaryControls: { flexDirection: 'row', justifyContent: 'center', gap: 20, paddingBottom: 12 },
+  secondaryBtn: {
+    width: 44, height: 44, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#111118', borderRadius: 12,
+  },
+  secondaryBtnActive: { backgroundColor: 'rgba(155,89,182,0.2)' },
 
-  viewMoreBtn: { marginHorizontal: 16, marginTop: 12, backgroundColor: 'rgba(155,89,182,0.2)', borderRadius: 10, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(155,89,182,0.3)' },
-  viewMoreText: { color: '#D7BDE2', fontWeight: '600', fontSize: 14 },
+  queueWrap: { flex: 1, paddingHorizontal: 16 },
+  queueHeader: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', marginBottom: 12, marginTop: 4,
+  },
+  queueTitle: { fontSize: 20, fontWeight: '800', color: '#fff' },
+  queueCount: { color: '#555', fontSize: 13 },
+  queueRow: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: 8, borderRadius: 10, marginBottom: 2,
+  },
+  queueRowActive: { backgroundColor: 'rgba(155,89,182,0.12)' },
+  queueArt: { width: 44, height: 44, borderRadius: 8, marginRight: 12 },
+  queueInfo: { flex: 1 },
+  queueSongTitle: { color: '#888', fontSize: 14, fontWeight: '500', marginBottom: 2 },
+  queueSongActive: { color: '#D7BDE2', fontWeight: '700' },
+  queueMeta: { color: '#444', fontSize: 11 },
 });

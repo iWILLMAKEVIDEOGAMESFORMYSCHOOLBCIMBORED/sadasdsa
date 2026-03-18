@@ -1,142 +1,88 @@
-import React, { useState } from 'react';
-import {
-  View, Text, TouchableOpacity, StyleSheet, Switch,
-  ScrollView, StatusBar, Alert,
-} from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import React from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Image, Dimensions } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useMusic } from '../context/MusicContext';
-import { JUICE_WRLD_SONGS } from '../data/songs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-export default function ProfileScreen() {
-  const { liked, recentlyPlayed } = useMusic();
+const { width } = Dimensions.get('window');
+
+export default function MiniPlayer() {
+  const { currentSong, isPlaying, togglePlay, playNext, setPlayerExpanded, showPlayer } = useMusic();
   const insets = useSafeAreaInsets();
-  const [autoplay, setAutoplay] = useState(true);
-  const [highQuality, setHighQuality] = useState(false);
-  const [notifications, setNotifications] = useState(true);
 
-  const stats = [
-    { label: 'Songs', value: JUICE_WRLD_SONGS.length, icon: '🎵' },
-    { label: 'Unreleased', value: JUICE_WRLD_SONGS.filter(s => s.type === 'unreleased').length, icon: '🔒' },
-    { label: 'Liked', value: liked.length, icon: '💜' },
-    { label: 'Played', value: recentlyPlayed.length, icon: '▶️' },
-  ];
-
-  const renderToggle = (label, value, setter, subtitle) => (
-    <View style={styles.settingRow}>
-      <View style={styles.settingInfo}>
-        <Text style={styles.settingLabel}>{label}</Text>
-        {subtitle && <Text style={styles.settingSubtitle}>{subtitle}</Text>}
-      </View>
-      <Switch
-        value={value}
-        onValueChange={setter}
-        trackColor={{ false: '#2A2A35', true: 'rgba(155,89,182,0.5)' }}
-        thumbColor={value ? '#9B59B6' : '#555'}
-        ios_backgroundColor="#2A2A35"
-      />
-    </View>
-  );
-
-  const renderLink = (icon, label, color = '#fff', onPress) => (
-    <TouchableOpacity style={styles.linkRow} onPress={onPress} activeOpacity={0.7}>
-      <View style={[styles.linkIcon, { backgroundColor: `${color}22` }]}>
-        <Ionicons name={icon} size={18} color={color} />
-      </View>
-      <Text style={styles.linkLabel}>{label}</Text>
-      <Ionicons name="chevron-forward" size={16} color="#444" />
-    </TouchableOpacity>
-  );
+  if (!currentSong || !showPlayer) return null;
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <StatusBar barStyle="light-content" />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
-
-        {/* Profile Header */}
-        <LinearGradient colors={['#1A0A2E', '#0A0A0F']} style={styles.header}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarEmoji}>🍇</Text>
+    <TouchableOpacity
+      style={[styles.container, { bottom: 54 + insets.bottom }]}
+      onPress={() => setPlayerExpanded(true)}
+      activeOpacity={0.95}
+    >
+      <BlurView intensity={80} tint="dark" style={styles.blur}>
+        <LinearGradient
+          colors={['rgba(155,89,182,0.15)', 'rgba(10,10,15,0.9)']}
+          style={styles.gradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+        >
+          {/* Progress bar at top */}
+          <View style={styles.progressBar}>
+            <View style={[styles.progressFill, { width: '35%' }]} />
           </View>
-          <Text style={styles.username}>999 Club Member</Text>
-          <Text style={styles.tagline}>Juice WRLD Forever</Text>
-        </LinearGradient>
 
-        {/* Stats Grid */}
-        <View style={styles.statsGrid}>
-          {stats.map((s, i) => (
-            <View key={i} style={styles.statCard}>
-              <Text style={styles.statIcon}>{s.icon}</Text>
-              <Text style={styles.statValue}>{s.value}</Text>
-              <Text style={styles.statLabel}>{s.label}</Text>
+          <View style={styles.content}>
+            <Image source={{ uri: currentSong.albumArt }} style={styles.art} />
+            <View style={styles.info}>
+              <Text style={styles.title} numberOfLines={1}>{currentSong.title}</Text>
+              <Text style={styles.meta}>Juice WRLD • {currentSong.year}</Text>
             </View>
-          ))}
-        </View>
-
-        {/* Settings */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Playback</Text>
-          {renderToggle('Autoplay', autoplay, setAutoplay, 'Automatically play next song')}
-          {renderToggle('High Quality', highQuality, setHighQuality, 'Use more data for better audio')}
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>App</Text>
-          {renderToggle('Notifications', notifications, setNotifications, 'New song alerts')}
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>About</Text>
-          {renderLink('musical-notes-outline', 'Song Database Info', '#9B59B6', () =>
-            Alert.alert('Song Database', `Juiceify has ${JUICE_WRLD_SONGS.length} Juice WRLD tracks including ${JUICE_WRLD_SONGS.filter(s=>s.type==='unreleased').length} unreleased songs. Songs are streamed via YouTube.`)
-          )}
-          {renderLink('musical-notes-outline', 'Powered by Google Drive', '#9B59B6', () => {})}
-          {renderLink('heart-outline', 'Made for the 999 Club', '#9B59B6', () => {})}
-          {renderLink('information-circle-outline', 'Version 1.0.0', '#888', () => {})}
-        </View>
-
-        {/* 999 Banner */}
-        <View style={styles.banner}>
-          <Text style={styles.bannerText}>999 🍇 Forever</Text>
-          <Text style={styles.bannerSub}>Jarad Higgins — Dec 2, 1998 – Dec 8, 2019</Text>
-          <Text style={styles.bannerSub2}>Legends Never Die ♾️</Text>
-        </View>
-
-      </ScrollView>
-    </View>
+            <View style={styles.controls}>
+              <TouchableOpacity onPress={togglePlay} style={styles.btn}>
+                <Ionicons
+                  name={isPlaying ? 'pause' : 'play'}
+                  size={22}
+                  color="#fff"
+                />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={playNext} style={styles.btn}>
+                <Ionicons name="play-skip-forward" size={22} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </LinearGradient>
+      </BlurView>
+    </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0A0A0F' },
-
-  header: { alignItems: 'center', paddingTop: 24, paddingBottom: 32 },
-  avatar: { width: 88, height: 88, borderRadius: 44, backgroundColor: 'rgba(155,89,182,0.2)', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'rgba(155,89,182,0.5)', marginBottom: 14 },
-  avatarEmoji: { fontSize: 42 },
-  username: { fontSize: 22, fontWeight: '800', color: '#fff', marginBottom: 4 },
-  tagline: { fontSize: 13, color: '#9B59B6', fontWeight: '500' },
-
-  statsGrid: { flexDirection: 'row', marginHorizontal: 16, marginBottom: 8, gap: 10 },
-  statCard: { flex: 1, backgroundColor: '#1A1A24', borderRadius: 14, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: '#2A2A35' },
-  statIcon: { fontSize: 20, marginBottom: 6 },
-  statValue: { fontSize: 20, fontWeight: '800', color: '#fff', marginBottom: 2 },
-  statLabel: { fontSize: 10, color: '#888', fontWeight: '500' },
-
-  section: { marginHorizontal: 16, marginTop: 20, backgroundColor: '#111118', borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: '#1E1E28' },
-  sectionTitle: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8, fontSize: 12, fontWeight: '700', color: '#666', letterSpacing: 0.8 },
-
-  settingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderTopColor: '#1E1E28' },
-  settingInfo: { flex: 1 },
-  settingLabel: { color: '#fff', fontSize: 15, fontWeight: '500' },
-  settingSubtitle: { color: '#555', fontSize: 12, marginTop: 2 },
-
-  linkRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 13, borderTopWidth: 1, borderTopColor: '#1E1E28', gap: 12 },
-  linkIcon: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  linkLabel: { flex: 1, color: '#fff', fontSize: 15, fontWeight: '500' },
-
-  banner: { margin: 16, marginTop: 24, backgroundColor: 'rgba(155,89,182,0.1)', borderRadius: 16, padding: 20, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(155,89,182,0.25)' },
-  bannerText: { fontSize: 22, fontWeight: '800', color: '#D7BDE2', marginBottom: 8 },
-  bannerSub: { color: '#888', fontSize: 13, marginBottom: 4, textAlign: 'center' },
-  bannerSub2: { color: '#9B59B6', fontSize: 13, fontWeight: '600' },
+  container: {
+    position: 'absolute',
+    left: 10,
+    right: 10,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#9B59B6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 10,
+    zIndex: 999,
+  },
+  blur: { overflow: 'hidden', borderRadius: 16 },
+  gradient: { borderRadius: 16, borderWidth: 1, borderColor: 'rgba(155,89,182,0.3)' },
+  progressBar: { height: 2, backgroundColor: 'rgba(255,255,255,0.1)' },
+  progressFill: { height: '100%', backgroundColor: '#9B59B6' },
+  content: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: 8, paddingHorizontal: 10, gap: 10,
+  },
+  art: { width: 42, height: 42, borderRadius: 8 },
+  info: { flex: 1 },
+  title: { color: '#fff', fontSize: 14, fontWeight: '700', marginBottom: 2 },
+  meta: { color: '#aaa', fontSize: 11 },
+  controls: { flexDirection: 'row', gap: 4 },
+  btn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 18, backgroundColor: 'rgba(155,89,182,0.3)' },
 });
