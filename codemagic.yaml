@@ -15,7 +15,7 @@ workflows:
           cd $CM_BUILD_DIR
           npm install
 
-      - name: Generate app icons and splash
+      - name: Generate assets
         script: |
           pip3 install Pillow --quiet
           python3 << 'PYEOF'
@@ -24,93 +24,49 @@ workflows:
 
           OUT = os.path.join(os.environ['CM_BUILD_DIR'], 'assets')
           os.makedirs(OUT, exist_ok=True)
+          BG=(10,10,15); PUR=(155,89,182); PUR2=(108,52,131); WHT=(255,255,255)
 
-          BG   = (10, 10, 15)
-          PUR  = (155, 89, 182)
-          PUR2 = (108, 52, 131)
-          WHT  = (255, 255, 255)
+          def grad(draw,w,h,c1,c2):
+            for y in range(h):
+              t=y/h; draw.line([(0,y),(w,y)],fill=tuple(int(c1[i]+(c2[i]-c1[i])*t) for i in range(3)))
 
-          def grad(draw, w, h, c1, c2):
-              for y in range(h):
-                  t = y / h
-                  draw.line([(0, y), (w, y)], fill=tuple(int(c1[i] + (c2[i]-c1[i])*t) for i in range(3)))
+          def grapes(draw,cx,cy,R):
+            gr=R*0.18
+            pos=[(cx,cy-R*.30),(cx-R*.22,cy-R*.10),(cx+R*.22,cy-R*.10),(cx-R*.34,cy+R*.12),(cx,cy+R*.12),(cx+R*.34,cy+R*.12),(cx-R*.17,cy+R*.34),(cx+R*.17,cy+R*.34),(cx,cy+R*.52)]
+            for px,py in pos: draw.ellipse([px-gr-3,py-gr-3,px+gr+3,py+gr+3],fill=(50,15,70))
+            for i,(px,py) in enumerate(pos):
+              t=i/len(pos); c=tuple(int(PUR[j]*(1-t)+PUR2[j]*t) for j in range(3))
+              draw.ellipse([px-gr,py-gr,px+gr,py+gr],fill=c)
+              hr=gr*.35; draw.ellipse([px-hr*.7,py-gr*.65,px+hr*.1,py-gr*.1],fill=(210,160,230))
+            draw.line([(cx,cy-R*.42),(cx,cy-R*.56)],fill=(90,150,50),width=max(2,int(R*.045)))
+            lx,ly,lr=cx+R*.12,cy-R*.53,R*.11
+            draw.ellipse([lx-lr,ly-lr*.55,lx+lr,ly+lr*.55],fill=(70,140,45))
 
-          def grapes(draw, cx, cy, R):
-              gr = R * 0.18
-              pos = [
-                  (cx, cy-R*.30), (cx-R*.22, cy-R*.10), (cx+R*.22, cy-R*.10),
-                  (cx-R*.34, cy+R*.12), (cx, cy+R*.12), (cx+R*.34, cy+R*.12),
-                  (cx-R*.17, cy+R*.34), (cx+R*.17, cy+R*.34), (cx, cy+R*.52)
-              ]
-              for px, py in pos:
-                  draw.ellipse([px-gr-3, py-gr-3, px+gr+3, py+gr+3], fill=(50, 15, 70))
-              for i, (px, py) in enumerate(pos):
-                  t = i / len(pos)
-                  c = tuple(int(PUR[j]*(1-t)+PUR2[j]*t) for j in range(3))
-                  draw.ellipse([px-gr, py-gr, px+gr, py+gr], fill=c)
-                  hr = gr * .35
-                  draw.ellipse([px-hr*.7, py-gr*.65, px+hr*.1, py-gr*.1], fill=(210, 160, 230))
-              draw.line([(cx, cy-R*.42), (cx, cy-R*.56)], fill=(90, 150, 50), width=max(2, int(R*.045)))
-              lx, ly, lr = cx+R*.12, cy-R*.53, R*.11
-              draw.ellipse([lx-lr, ly-lr*.55, lx+lr, ly+lr*.55], fill=(70, 140, 45))
+          S=1024; img=Image.new('RGB',(S,S)); d=ImageDraw.Draw(img)
+          grad(d,S,S,(26,10,46),BG)
+          d.ellipse([S*.13,S*.09,S*.87,S*.83],fill=(22,8,38))
+          grapes(d,S//2,S//2-int(S*.04),int(S*.32))
+          img.save(f'{OUT}/icon.png'); print('icon.png done')
 
-          # icon.png 1024x1024
-          S = 1024
-          img = Image.new('RGB', (S, S))
-          d = ImageDraw.Draw(img)
-          grad(d, S, S, (26, 10, 46), BG)
-          cx = cy = S // 2
-          d.ellipse([cx-S*.37, cy-S*.41, cx+S*.37, cy+S*.33], fill=(22, 8, 38))
-          grapes(d, cx, cy-int(S*.04), int(S*.32))
-          try:
-              fn = ImageFont.truetype('/System/Library/Fonts/Helvetica.ttc', int(S*.08))
-          except:
-              fn = ImageFont.load_default()
-          d.text((cx, cy+int(S*.40)), 'JUICEIFY', fill=(210, 160, 230), font=fn, anchor='mm')
-          img.save(f'{OUT}/icon.png')
-          print('icon.png done')
+          W,H=1284,2778; img=Image.new('RGB',(W,H)); d=ImageDraw.Draw(img)
+          grad(d,W,H,(26,10,46),BG)
+          cx2,cy2=W//2,H//2-int(H*.06)
+          d.ellipse([cx2-int(W*.32),cy2-int(W*.34),cx2+int(W*.32),cy2+int(W*.20)],fill=(22,8,38))
+          grapes(d,cx2,cy2,int(W*.27))
+          img.save(f'{OUT}/splash.png'); print('splash.png done')
 
-          # splash.png 1284x2778
-          W, H = 1284, 2778
-          img = Image.new('RGB', (W, H))
-          d = ImageDraw.Draw(img)
-          grad(d, W, H, (26, 10, 46), BG)
-          cx2, cy2 = W//2, H//2 - int(H*.06)
-          d.ellipse([cx2-int(W*.32), cy2-int(W*.34), cx2+int(W*.32), cy2+int(W*.20)], fill=(22, 8, 38))
-          grapes(d, cx2, cy2, int(W*.27))
-          try:
-              ft = ImageFont.truetype('/System/Library/Fonts/Helvetica.ttc', int(W*.11))
-              fs = ImageFont.truetype('/System/Library/Fonts/Helvetica.ttc', int(W*.04))
-          except:
-              ft = fs = ImageFont.load_default()
-          d.text((cx2, cy2+int(W*.36)), 'Juiceify', fill=WHT, font=ft, anchor='mm')
-          d.text((cx2, cy2+int(W*.48)), 'All Juice WRLD. All the time.', fill=PUR, font=fs, anchor='mm')
-          img.save(f'{OUT}/splash.png')
-          print('splash.png done')
+          S2=432; img=Image.new('RGBA',(S2,S2),(0,0,0,0)); d=ImageDraw.Draw(img)
+          grapes(d,S2//2,S2//2,int(S2*.42)); img.save(f'{OUT}/adaptive-icon.png'); print('adaptive-icon.png done')
 
-          # adaptive-icon.png 432x432
-          S2 = 432
-          img = Image.new('RGBA', (S2, S2), (0, 0, 0, 0))
-          d = ImageDraw.Draw(img)
-          grapes(d, S2//2, S2//2, int(S2*.42))
-          img.save(f'{OUT}/adaptive-icon.png')
-          print('adaptive-icon.png done')
-
-          # favicon.png 48x48
-          img = Image.new('RGBA', (48, 48), (0, 0, 0, 0))
-          d = ImageDraw.Draw(img)
-          d.ellipse([0, 0, 47, 47], fill=PUR2)
-          grapes(d, 24, 23, 16)
-          img.save(f'{OUT}/favicon.png')
-          print('favicon.png done')
-
-          print('All assets generated successfully')
+          img=Image.new('RGBA',(48,48),(0,0,0,0)); d=ImageDraw.Draw(img)
+          d.ellipse([0,0,47,47],fill=PUR2); grapes(d,24,23,16)
+          img.save(f'{OUT}/favicon.png'); print('favicon.png done')
           PYEOF
 
       - name: Expo prebuild
         script: |
           cd $CM_BUILD_DIR
-          echo "Checking assets exist:"
+          echo "Assets present:"
           ls -la assets/
           npx expo prebuild --platform ios --clean --no-install
 
@@ -122,11 +78,26 @@ workflows:
       - name: Build iOS app
         script: |
           cd $CM_BUILD_DIR/ios
-          echo "=== Available schemes ==="
-          xcodebuild -list 2>&1 || true
-          WORKSPACE=$(ls *.xcworkspace | head -1)
-          SCHEME=$(echo "$WORKSPACE" | sed 's/.xcworkspace//')
-          echo "Building: workspace=$WORKSPACE scheme=$SCHEME"
+
+          # Print everything xcode can see
+          echo "=== Workspaces ==="
+          ls *.xcworkspace 2>/dev/null || echo "none"
+
+          echo "=== xcodebuild -list ==="
+          WORKSPACE=$(ls *.xcworkspace 2>/dev/null | head -1)
+          xcodebuild -list -workspace "$WORKSPACE" 2>&1
+
+          # Extract first scheme from xcodebuild -list output
+          SCHEME=$(xcodebuild -list -workspace "$WORKSPACE" 2>/dev/null \
+            | awk '/Schemes:/,0' \
+            | grep -v "Schemes:" \
+            | grep -v "^$" \
+            | head -1 \
+            | xargs)
+
+          echo "=== Using workspace: $WORKSPACE ==="
+          echo "=== Using scheme: $SCHEME ==="
+
           xcodebuild \
             -workspace "$WORKSPACE" \
             -scheme "$SCHEME" \
@@ -147,7 +118,7 @@ workflows:
           cp -r "$APP_PATH" /tmp/Payload/
           cd /tmp
           zip -r "$CM_EXPORT_DIR/Juiceify.ipa" Payload/
-          echo "IPA ready"
+          echo "IPA packaged at $CM_EXPORT_DIR/Juiceify.ipa"
 
     artifacts:
       - $CM_EXPORT_DIR/Juiceify.ipa
